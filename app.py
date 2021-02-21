@@ -4,8 +4,8 @@ from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm
-from models import db, connect_db, User, Message
+from forms import UserAddForm, LoginForm, MessageForm, UserEditForm
+from models import db, connect_db, User, Message, Likes, Follows
 
 CURR_USER_KEY = "curr_user"
 
@@ -113,7 +113,9 @@ def login():
 def logout():
     """Handle logout of user."""
 
-    # IMPLEMENT THIS
+    do_logout()
+    flash ("Logged out succesfully!", 'success')
+    return redirect("/")
 
 
 ##############################################################################
@@ -211,7 +213,33 @@ def stop_following(follow_id):
 def profile():
     """Update profile for current user."""
 
-    # IMPLEMENT THIS
+    form = UserEditForm(obj=g.user)
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    if form.validate_on_submit():
+        
+        if User.authenticate(g.user.username, form.password.data):
+
+            g.user.username = form.username.data
+            g.user.email = form.email.data
+            if form.image_url.data:
+                g.user.image_url = form.image_url.data
+            if form.header_image_url.data:
+                g.user.header_image_url = form.header_image_url.data
+            if form.bio.data:
+                g.user.bio = form.bio.data
+        else:
+            flash("Password Incorrect", "danger")
+            return redirect("/")
+
+        db.session.commit()
+
+        return redirect(f"/users/{g.user.id}")
+
+    return render_template("users/edit.html", form=form)
 
 
 @app.route('/users/delete', methods=["POST"])
@@ -228,6 +256,33 @@ def delete_user():
     db.session.commit()
 
     return redirect("/signup")
+
+@app.route('/users/add_like/<int:msg_id>', methods=["POST"])
+def add_like(msg_id):
+    """ When the thumbs up is clicked on a message add it to the user's likes"""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    
+    new_like = Likes(user_id=g.user.id, message_id=msg_id)
+
+    db.session.add(new_like)
+    db.session.commit()
+
+    return redirect("/")
+
+
+@app.route("/users/<int:user_id>/likes")
+def show_likes(user_id):
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = User.query.get_or_404(user_id)
+    likes = user.likes
+    return render_template('users/likes.html', user=user, likes=likes)
 
 
 ##############################################################################
@@ -297,7 +352,7 @@ def homepage():
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
-
+        
         return render_template('home.html', messages=messages)
 
     else:

@@ -27,6 +27,7 @@ class Follows(db.Model):
     )
 
 
+
 class Likes(db.Model):
     """Mapping user likes to warbles."""
 
