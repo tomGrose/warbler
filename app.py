@@ -2,7 +2,7 @@ import os
 
 from flask import Flask, render_template, request, flash, redirect, session, g, url_for
 from flask_debugtoolbar import DebugToolbarExtension
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError
 
 from forms import UserAddForm, LoginForm, MessageForm, UserEditForm, ChangePasswordForm
 from models import db, connect_db, User, Message, Likes, Follows
@@ -223,22 +223,23 @@ def profile():
     if form.validate_on_submit():
         
         if User.authenticate(g.user.username, form.password.data):
-
-            g.user.username = form.username.data
-            g.user.email = form.email.data
-            if form.image_url.data:
+            try:
+                g.user.username = form.username.data
+                g.user.email = form.email.data
                 g.user.image_url = form.image_url.data
-            if form.header_image_url.data:
                 g.user.header_image_url = form.header_image_url.data
-            if form.bio.data:
                 g.user.bio = form.bio.data
+
+                db.session.commit()
+                
+
+            except IntegrityError:
+                form.username.errors.append('Username taken.  Please pick another')
+                return render_template("users/edit.html", form=form)
+
+            return redirect(url_for('users_show', user_id=g.user.id))
         else:
-            flash("Password Incorrect", "danger")
-            return redirect("/")
-
-        db.session.commit()
-
-        return redirect(url_for('users_show', user_id=g.user.id))
+            form.password.errors.append('Password Incorrect!')
 
     return render_template("users/edit.html", form=form)
 
@@ -266,16 +267,20 @@ def add_like(msg_id):
         flash("Access unauthorized.", "danger")
         return redirect("/")
     
-    new_like = Likes(user_id=g.user.id, message_id=msg_id)
+    try:
+        new_like = Likes(user_id=g.user.id, message_id=msg_id)
+        db.session.add(new_like)
+        db.session.commit()
 
-    db.session.add(new_like)
-    db.session.commit()
+    except IntegrityError:
+        flash("You have already liked this message!", "danger")
 
     return redirect("/")
 
 
 @app.route("/users/<int:user_id>/likes")
 def show_likes(user_id):
+    """ Show all the messages a user has liked"""
 
     if not g.user:
         flash("Access unauthorized.", "danger")
