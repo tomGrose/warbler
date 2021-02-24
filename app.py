@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, render_template, request, flash, redirect, session, g
+from flask import Flask, render_template, request, flash, redirect, session, g, url_for
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
@@ -192,7 +192,7 @@ def add_follow(follow_id):
     g.user.following.append(followed_user)
     db.session.commit()
 
-    return redirect(f"/users/{g.user.id}/following")
+    return redirect(url_for('show_following', user_id=g.user.id))
 
 
 @app.route('/users/stop-following/<int:follow_id>', methods=['POST'])
@@ -207,7 +207,7 @@ def stop_following(follow_id):
     g.user.following.remove(followed_user)
     db.session.commit()
 
-    return redirect(f"/users/{g.user.id}/following")
+    return redirect(url_for('show_following', user_id=g.user.id))
 
 
 @app.route('/users/profile', methods=["GET", "POST"])
@@ -238,7 +238,7 @@ def profile():
 
         db.session.commit()
 
-        return redirect(f"/users/{g.user.id}")
+        return redirect(url_for('users_show', user_id=g.user.id))
 
     return render_template("users/edit.html", form=form)
 
@@ -256,7 +256,7 @@ def delete_user():
     db.session.delete(g.user)
     db.session.commit()
 
-    return redirect("/signup")
+    return redirect(url_for('signup'))
 
 @app.route('/users/add_like/<int:msg_id>', methods=["POST"])
 def add_like(msg_id):
@@ -307,7 +307,7 @@ def messages_add():
         g.user.messages.append(msg)
         db.session.commit()
 
-        return redirect(f"/users/{g.user.id}")
+        return redirect(url_for('users_show', user_id=g.user.id))
 
     return render_template('messages/new.html', form=form)
 
@@ -339,7 +339,7 @@ def messages_destroy(message_id):
     db.session.delete(msg)
     db.session.commit()
 
-    return redirect(f"/users/{g.user.id}")
+    return redirect(url_for('users_show', user_id=g.user.id))
 
 
 ##############################################################################
@@ -355,8 +355,11 @@ def homepage():
     """
 
     if g.user:
+        following_ids = [f.id for f in g.user.following] + [g.user.id]
+
         messages = (Message
                     .query
+                    .filter(Message.user_id.in_(following_ids))
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
