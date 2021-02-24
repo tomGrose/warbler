@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, flash, redirect, session, g, 
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm, UserEditForm
+from forms import UserAddForm, LoginForm, MessageForm, UserEditForm, ChangePasswordForm
 from models import db, connect_db, User, Message, Likes, Follows
 
 CURR_USER_KEY = "curr_user"
@@ -285,6 +285,35 @@ def show_likes(user_id):
     likes = user.likes
     return render_template('users/likes.html', user=user, likes=likes)
 
+@app.route("/users/password", methods=["GET", "POST"])
+def users_change_password():
+    """ Allow a user to change their password"""
+    
+    form = ChangePasswordForm()
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    if form.validate_on_submit():
+        
+        if User.authenticate(g.user.username, form.password.data):
+
+            print(form.new_password.data)
+            print(form.new_password_check.data)
+
+            if form.new_password.data == form.new_password_check.data:
+                g.user.change_password(form.new_password.data)
+                db.session.commit()
+                flash("Password changed succesfully", "success")
+                return redirect(url_for('users_show', user_id=g.user.id))
+            else:
+                form.new_password.errors.append('New passwords do not match')
+        else:
+            form.password.errors.append('Incorrect Password')
+
+    return render_template("users/change-password.html", form=form)
+
 
 ##############################################################################
 # Messages routes:
@@ -328,13 +357,7 @@ def messages_destroy(message_id):
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    
-
     msg = Message.query.get(message_id)
-
-    # if msg.user.id != g.user.id:
-    #     flash("Access unauthorized.", "danger")
-    #     return redirect("/")
 
     db.session.delete(msg)
     db.session.commit()

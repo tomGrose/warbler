@@ -36,6 +36,6 @@ class UserEditForm(FlaskForm):
     password = PasswordField('Password', validators=[Length(min=6)])
 
 class ChangePasswordForm(FlaskForm):
-    current_password = StringField("Current password", validators=[Length(min=6)])
+    password = PasswordField("Current password", validators=[Length(min=6)])
     new_password = PasswordField("New Password", validators=[Length(min=6)])
     new_password_check = PasswordField("Re-type new Password", validators=[Length(min=6)])
