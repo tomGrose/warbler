@@ -109,32 +109,6 @@ class MessageViewTestCase(TestCase):
             self.assertEqual(len(Message.query.all()), 0)
 
 
-    # def test_delete_message_other_user(self):
-    #     """User should not be able to delete another user's message when logged in."""
-
-    #     with self.client as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.testuser.id
-
-    #         resp = c.post("/messages/new", data={"text": "Hello"})
-
-    #         msg = Message.query.one()
-
-    #         testuser2 = User.signup(username="testuser2",
-    #                                     email="test2@test.com",
-    #                                     password="testuser",
-    #                                     image_url=None)
-
-    #         db.session.commit()
-
-    #         with c.session_transaction() as sess:
-    #             del sess[CURR_USER_KEY]
-    #             sess[CURR_USER_KEY] = testuser2.id
-            
-    #         resp2 = c.post(f"/messages/{msg.id}/delete")
-
-    #         self.assertEqual(resp2.status_code, 302)
-    #         self.assertEqual(len(Message.query.all()), 1)
 
 
     def test_delete_message_logged_out(self):

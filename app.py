@@ -234,6 +234,7 @@ def profile():
                 
 
             except IntegrityError:
+                db.session.rollback()
                 form.username.errors.append('Username taken.  Please pick another')
                 return render_template("users/edit.html", form=form)
 
